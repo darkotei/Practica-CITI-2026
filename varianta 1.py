@@ -281,7 +281,7 @@ with st.expander(
        
        ---
        
-        ### 🏡 3. Pentru Sate sau Comune
+        ## 🏡 3. Pentru Sate sau Comune
         * Folosește formatul: **`Sat, Strada Număr`** sau doar **`Sat, Număr`**
         * ✅ **Corect:** `Măgura, Strada Principală 45 `
         * ✅ **Corect:** `Biertan 42`
