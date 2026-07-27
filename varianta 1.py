@@ -291,7 +291,7 @@ with st.expander(
     
     ---
     
-        ### 📱 4. Geolocație Automată (GPS)
+        ## 📱 4. Geolocație Automată (GPS)
         * Poți lăsa aplicația să-ți detecteze automat poziția actuală prin GPS, iar în caseta de plecare vor apărea direct coordonatele tale exacte.
         """
     )
