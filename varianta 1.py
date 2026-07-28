@@ -194,6 +194,91 @@ def obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s):
     return None, None, []
 
 
+# Căutare exhaustivă benzinării (Rază strictă de 5 km)
+def obtine_benzinarii_pe_traseu(puncte_traseu):
+    if not puncte_traseu or len(puncte_traseu) < 2:
+        return []
+
+    # 1. Calculăm Bounding Box pentru întreg traseul (+ puffer de ~5km în grade GPS: ~0.045)
+    lats = [p[0] for p in puncte_traseu]
+    lons = [p[1] for p in puncte_traseu]
+
+    min_lat, max_lat = min(lats) - 0.045, max(lats) + 0.045
+    min_lon, max_lon = min(lons) - 0.045, max(lons) + 0.045
+
+    # 2. Interogare Overpass pentru TOATE stațiile din zona traseului
+    overpass_url = "https://overpass-api.de/api/interpreter"
+    overpass_query = f"""
+    [out:json][timeout:15];
+    (
+      node["amenity"="fuel"]({min_lat},{min_lon},{max_lat},{max_lon});
+      way["amenity"="fuel"]({min_lat},{min_lon},{max_lat},{max_lon});
+    );
+    out body center;
+    """
+
+    try:
+        response = requests.post(
+            overpass_url, data={"data": overpass_query}, timeout=10
+        )
+        data = response.json()
+
+        benzinarii = []
+        elemente_vazute = set()
+
+        # Eșantionăm traseul pentru verificare matematică rapidă
+        pas = max(1, len(puncte_traseu) // 150)
+        traseu_verificare = puncte_traseu[::pas]
+
+        for element in data.get("elements", []):
+            el_id = element.get("id")
+            if el_id in elemente_vazute:
+                continue
+            elemente_vazute.add(el_id)
+
+            tags = element.get("tags", {})
+            nume = tags.get("name") or tags.get("brand") or "Stație Combustibil"
+
+            lat = element.get("lat") or element.get("center", {}).get("lat")
+            lon = element.get("lon") or element.get("center", {}).get("lon")
+
+            if lat and lon:
+                lat_f, lon_f = float(lat), float(lon)
+
+                # Calculăm distanța minimă reală (în km) față de linia traseului
+                dist_min_km = min(
+                    math.sqrt(
+                        (lat_f - pt[0]) ** 2
+                        + ((lon_f - pt[1]) * math.cos(math.radians(lat_f))) ** 2
+                    )
+                    * 111
+                    for pt in traseu_verificare
+                )
+
+                # Filtru Strict: Maxim 5.0 km
+                if dist_min_km <= 5.0:
+                    # Evidențiere pe categorii
+                    if dist_min_km <= 0.8:
+                        prioritate = "directa"  # Fix pe traseu / Mărginașă
+                    else:
+                        prioritate = "aria_5km"  # În raza de 5 km
+
+                    benzinarii.append(
+                        {
+                            "nume": nume,
+                            "lat": lat_f,
+                            "lon": lon_f,
+                            "dist_km": dist_min_km,
+                            "prioritate": prioritate,
+                        }
+                    )
+
+        return benzinarii
+    except Exception:
+        return []
+
+
+
 # ---------------------------------------------------------
 # SIDEBAR
 # ---------------------------------------------------------
@@ -389,6 +474,7 @@ if btn_calcul:
                     st.session_state.lat_s = lat_s
                     st.session_state.lon_s = lon_s
                     st.session_state.puncte_traseu = puncte_traseu
+                    st.session_state.benzinarii = obtine_benzinarii_pe_traseu(puncte_traseu)
                     st.session_state.rezultate_calculate = True
                 else:
                     st.error(
@@ -438,7 +524,7 @@ if st.session_state.rezultate_calculate:
     col_harta, col_grafic = st.columns([6, 4])
 
     with col_harta:
-        st.subheader("🗺️ Vizualizare Traseu pe Șosea")
+        st.subheader("🗺️ Vizualizare Traseu & Benzinării (Rază 5 km)")
         lat_p, lon_p = st.session_state.lat_p, st.session_state.lon_p
         lat_s, lon_s = st.session_state.lat_s, st.session_state.lon_s
         pts = st.session_state.puncte_traseu
@@ -460,6 +546,27 @@ if st.session_state.rezultate_calculate:
         folium.PolyLine(
             locations=pts, color="#2563eb", weight=4, opacity=0.85
         ).add_to(m_map)
+
+        # Inserăm TOATE benzinăriile din aria de 5 km pe hartă
+        benzinarii_gasite = st.session_state.get("benzinarii", [])
+
+        for benz in benzinarii_gasite:
+            if benz["prioritate"] == "directa":
+                # Direct pe traseu (sub 800m) -> MARKER ROȘU INTENS
+                folium.Marker(
+                    location=[benz["lat"], benz["lon"]],
+                    popup=f"🔥 <b>{benz['nume']}</b><br>📍 Direct pe traseu ({benz['dist_km']*1000:.0f} m)",
+                    tooltip=f"⭐ PE TRASEU: {benz['nume']}",
+                    icon=folium.Icon(color="red", icon="info-sign"),
+                ).add_to(m_map)
+            else:
+                # În aria de 5 km -> MARKER PORTOCALIU
+                folium.Marker(
+                    location=[benz["lat"], benz["lon"]],
+                    popup=f"⛽ <b>{benz['nume']}</b><br>🚗 În apropiere (~{benz['dist_km']:.1f} km)",
+                    tooltip=f"⛽ Raza 5km: {benz['nume']}",
+                    icon=folium.Icon(color="orange", icon="info-sign"),
+                ).add_to(m_map)
 
         st_folium(m_map, width=650, height=350, key="harta_principala")
 
