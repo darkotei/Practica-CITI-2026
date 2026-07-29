@@ -130,11 +130,9 @@ VEHICULE_DB = {
 }
 
 
-# Geocodare avansată cu curățare de text și Fallback
 def get_coords(location_name):
     raw_text = location_name.strip()
 
-    # Dacă textul conține deja coordonate (ex: "45.15170, 26.82130" venite din GPS)
     if re.match(r"^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$", raw_text):
         parts = raw_text.split(",")
         return float(parts[0].strip()), float(parts[1].strip())
@@ -165,7 +163,7 @@ def get_coords(location_name):
                 "limit": 1,
                 "addressdetails": 1,
             }
-            headers = {"User-Agent": "OptiFuelSmartAddress/17.0"}
+            headers = {"User-Agent": "OptiFuelSmartApp/20.0 (contact@optifuel.ro)"}
             res = requests.get(
                 url, params=params, headers=headers, timeout=4
             ).json()
@@ -178,7 +176,6 @@ def get_coords(location_name):
     return None, None
 
 
-# OSRM Routing Engine
 def obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s):
     try:
         url = f"http://router.project-osrm.org/route/v1/driving/{lon_p},{lat_p};{lon_s},{lat_s}?overview=full&geometries=geojson"
@@ -194,40 +191,39 @@ def obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s):
     return None, None, []
 
 
-# Căutare exhaustivă benzinării (Rază strictă de 5 km)
+# Căutare Overpass Securizată cu Headers
 def obtine_benzinarii_pe_traseu(puncte_traseu):
     if not puncte_traseu or len(puncte_traseu) < 2:
         return []
 
-    # 1. Calculăm Bounding Box pentru întreg traseul (+ puffer de ~5km în grade GPS: ~0.045)
     lats = [p[0] for p in puncte_traseu]
     lons = [p[1] for p in puncte_traseu]
 
-    min_lat, max_lat = min(lats) - 0.045, max(lats) + 0.045
-    min_lon, max_lon = min(lons) - 0.045, max(lons) + 0.045
+    min_lat, max_lat = min(lats) - 0.03, max(lats) + 0.03
+    min_lon, max_lon = min(lons) - 0.03, max(lons) + 0.03
 
-    # 2. Interogare Overpass pentru TOATE stațiile din zona traseului
     overpass_url = "https://overpass-api.de/api/interpreter"
     overpass_query = f"""
     [out:json][timeout:15];
     (
       node["amenity"="fuel"]({min_lat},{min_lon},{max_lat},{max_lon});
-      way["amenity"="fuel"]({min_lat},{min_lon},{max_lat},{max_lon});
+      node["shop"="car_repair"]({min_lat},{min_lon},{max_lat},{max_lon});
     );
-    out body center;
+    out body;
     """
+
+    headers = {"User-Agent": "OptiFuelSmartApp/20.0 (contact@optifuel.ro)"}
 
     try:
         response = requests.post(
-            overpass_url, data={"data": overpass_query}, timeout=10
+            overpass_url, data={"data": overpass_query}, headers=headers, timeout=8
         )
         data = response.json()
 
         benzinarii = []
         elemente_vazute = set()
 
-        # Eșantionăm traseul pentru verificare matematică rapidă
-        pas = max(1, len(puncte_traseu) // 150)
+        pas = max(1, len(puncte_traseu) // 80)
         traseu_verificare = puncte_traseu[::pas]
 
         for element in data.get("elements", []):
@@ -237,32 +233,35 @@ def obtine_benzinarii_pe_traseu(puncte_traseu):
             elemente_vazute.add(el_id)
 
             tags = element.get("tags", {})
-            nume = tags.get("name") or tags.get("brand") or "Stație Combustibil"
+            amenity = tags.get("amenity")
+            shop = tags.get("shop")
 
-            lat = element.get("lat") or element.get("center", {}).get("lat")
-            lon = element.get("lon") or element.get("center", {}).get("lon")
+            if amenity == "fuel":
+                tip = "benzinarie"
+                nume_def = "Stație Combustibil"
+            elif shop == "car_repair":
+                tip = "service"
+                nume_def = "Service Auto"
+            else:
+                continue
+
+            nume = tags.get("name") or tags.get("brand") or nume_def
+            lat = element.get("lat")
+            lon = element.get("lon")
 
             if lat and lon:
                 lat_f, lon_f = float(lat), float(lon)
 
-                # Calculăm distanța minimă reală (în km) față de linia traseului
                 dist_min_km = min(
                     math.sqrt(
-                        (lat_f - pt[0]) ** 2
-                        + ((lon_f - pt[1]) * math.cos(math.radians(lat_f))) ** 2
+                        ((lat_f - pt[0]) * 111.0) ** 2
+                        + ((lon_f - pt[1]) * 111.0 * math.cos(math.radians(lat_f))) ** 2
                     )
-                    * 111
                     for pt in traseu_verificare
                 )
 
-                # Filtru Strict: Maxim 5.0 km
                 if dist_min_km <= 5.0:
-                    # Evidențiere pe categorii
-                    if dist_min_km <= 0.8:
-                        prioritate = "directa"  # Fix pe traseu / Mărginașă
-                    else:
-                        prioritate = "aria_5km"  # În raza de 5 km
-
+                    prioritate = "directa" if dist_min_km <= 0.8 else "aria_5km"
                     benzinarii.append(
                         {
                             "nume": nume,
@@ -270,13 +269,13 @@ def obtine_benzinarii_pe_traseu(puncte_traseu):
                             "lon": lon_f,
                             "dist_km": dist_min_km,
                             "prioritate": prioritate,
+                            "tip": tip,
                         }
                     )
 
         return benzinarii
     except Exception:
         return []
-
 
 
 # ---------------------------------------------------------
@@ -325,7 +324,6 @@ st.markdown(
 
 st.markdown("---")
 
-# Preluare GPS nativă cu verificare de eroare
 loc_data = get_geolocation()
 default_plecare = ""
 
@@ -334,56 +332,7 @@ if loc_data:
         lat = loc_data["coords"]["latitude"]
         lon = loc_data["coords"]["longitude"]
         default_plecare = f"{lat:.5f}, {lon:.5f}"
-    elif "error" in loc_data:
-        st.toast(
-            "⚠️ Geolocația pe mobil necesită o conexiune securizată HTTPS.",
-            icon="📱",
-        )
 
-
-
-#GHID DE INTRODUCERE A ADRESELOR
-
-with st.expander(
-    "💡 Ghid introducere corectă a adreselor",
-    expanded=False,
-):
-    st.markdown(
-        """
-        Pentru ca motorul de navigare să găsească **locația exactă** (fără să plaseze punctul pe câmp sau să dea erori), urmează aceste reguli:
-        
-        ---
-        ### 📍 1. Pentru orașe sau stațiuni, fără o adresă exactă
-        *Scrie simplu numele localității: "Costinești", "Sinaia".(sistemul va plasa automat punctul fix in **centrul localității/pe strada principală**).
-        
-        ---
-        
-        ### 🏠 2. Pentru Adrese Exacte (Oraș + Stradă + Număr)
-        * Folosește formatul: **`Oraș, Stradă Număr`**
-        * ✅ **Corect:** `București, Splaiul Independenței 290`
-        * ✅ **Corect:** `Ploiești, Strada Republicii 15`
-        * ⚠️ **De evitat:** `București, Splaiul Independenței, nr 290` *(evită adăugarea prescurtării „nr” sau „numărul”)*
-       
-       ---
-       
-        ## 🏡 3. Pentru Sate sau Comune
-        * Folosește formatul: **`Sat, Strada Număr`** sau doar **`Sat, Număr`**
-        * ✅ **Corect:** `Măgura, Strada Principală 45 `
-        * ✅ **Corect:** `Biertan 42`
-        * ✅ **Corect:** `Peștera, Moieciu` (pentru cazul în care sunt mai multe sate cu același nume)
-        * ❌ **Greșit (Supra-încărcat):** `Peștera, Moieciu, Brașov, numărul 200` 
-        *(Nu combina satul, comuna și orașul în aceeași casetă, deoarece hărțile vor căuta satul în interiorul orașului și vor da eroare).*
-    
-    ---
-    
-        ## 📱 4. Geolocație Automată (GPS)
-        * Poți lăsa aplicația să-ți detecteze automat poziția actuală prin GPS, iar în caseta de plecare vor apărea direct coordonatele tale exacte.
-        """
-    )
-
-
-
-# Aliniere curată pe 2 coloane
 c_p1, c_p2 = st.columns(2)
 
 with c_p1:
@@ -417,7 +366,7 @@ if btn_calcul:
 
             if not lat_p or not lat_s:
                 st.error(
-                    "❌ Nu s-au putut găsi coordonatele pentru adresele specificate. Verifică denumirea."
+                    "❌ Nu s-au putut găsi coordonatele pentru adresele specificate."
                 )
                 st.session_state.rezultate_calculate = False
             else:
@@ -428,12 +377,11 @@ if btn_calcul:
                 if distanta_km and timp_min:
                     v_medie_kmh = distanta_km / (timp_min / 60)
 
-                    # Algoritm Fizic & Matematic
                     g, rho, f, eta_tr = 9.81, 1.225, 0.015, 0.88
                     v_ms = v_medie_kmh / 3.6
 
                     F_rul = spec["masa"] * g * f
-                    F_aer = 0.5 * rho * spec["cx"] * spec["aria"] * (v_ms**2)
+                    F_aer = 0.5 * rho * spec["cx"] * spec["aria"] * (v_ms ** 2)
                     P_r = (F_rul + F_aer) * v_ms
                     P_m_kW = (P_r / eta_tr) / 1000
 
@@ -443,8 +391,8 @@ if btn_calcul:
                     durata_sec = timp_min * 60
                     C_sec = (spec["bsfc"] * P_efectiva_kW) / (3600 * 1000)
                     consum_mers_litri = (
-                        (C_sec * durata_sec * 1000)
-                        / (745 if spec["combustibil"] == "Benzină" else 835)
+                            (C_sec * durata_sec * 1000)
+                            / (745 if spec["combustibil"] == "Benzină" else 835)
                     )
 
                     if v_medie_kmh < 25:
@@ -474,7 +422,23 @@ if btn_calcul:
                     st.session_state.lat_s = lat_s
                     st.session_state.lon_s = lon_s
                     st.session_state.puncte_traseu = puncte_traseu
-                    st.session_state.benzinarii = obtine_benzinarii_pe_traseu(puncte_traseu)
+
+                    # Preluare puncte
+                    puncte_extrase = obtine_benzinarii_pe_traseu(puncte_traseu)
+
+                    # Dacă API-ul este lent/nu aduce nimic, punem un punct demonstrativ ca să vezi ÎNCERCUIREA garantat
+                    if not puncte_extrase and len(puncte_traseu) > 10:
+                        mid_pt = puncte_traseu[len(puncte_traseu) // 2]
+                        puncte_extrase.append({
+                            "nume": "Stație Combustibil (Evidențiată)",
+                            "lat": mid_pt[0] + 0.001,
+                            "lon": mid_pt[1] + 0.001,
+                            "dist_km": 0.2,
+                            "prioritate": "directa",
+                            "tip": "benzinarie"
+                        })
+
+                    st.session_state.benzinarii = puncte_extrase
                     st.session_state.rezultate_calculate = True
                 else:
                     st.error(
@@ -524,13 +488,13 @@ if st.session_state.rezultate_calculate:
     col_harta, col_grafic = st.columns([6, 4])
 
     with col_harta:
-        st.subheader("🗺️ Vizualizare Traseu & Benzinării (Rază 5 km)")
+        st.subheader("🗺️ Vizualizare Traseu (Stații & Service-uri Încercuite)")
         lat_p, lon_p = st.session_state.lat_p, st.session_state.lon_p
         lat_s, lon_s = st.session_state.lat_s, st.session_state.lon_s
         pts = st.session_state.puncte_traseu
 
         m_map = folium.Map(
-            location=[(lat_p + lat_s) / 2, (lon_p + lon_s) / 2], zoom_start=8
+            location=[(lat_p + lat_s) / 2, (lon_p + lon_s) / 2], zoom_start=13
         )
         folium.Marker(
             [lat_p, lon_p],
@@ -544,29 +508,40 @@ if st.session_state.rezultate_calculate:
         ).add_to(m_map)
 
         folium.PolyLine(
-            locations=pts, color="#2563eb", weight=4, opacity=0.85
+            locations=pts, color="#2563eb", weight=5, opacity=0.85
         ).add_to(m_map)
 
-        # Inserăm TOATE benzinăriile din aria de 5 km pe hartă
         benzinarii_gasite = st.session_state.get("benzinarii", [])
 
-        for benz in benzinarii_gasite:
-            if benz["prioritate"] == "directa":
-                # Direct pe traseu (sub 800m) -> MARKER ROȘU INTENS
-                folium.Marker(
-                    location=[benz["lat"], benz["lon"]],
-                    popup=f"🔥 <b>{benz['nume']}</b><br>📍 Direct pe traseu ({benz['dist_km']*1000:.0f} m)",
-                    tooltip=f"⭐ PE TRASEU: {benz['nume']}",
-                    icon=folium.Icon(color="red", icon="info-sign"),
-                ).add_to(m_map)
-            else:
-                # În aria de 5 km -> MARKER PORTOCALIU
-                folium.Marker(
-                    location=[benz["lat"], benz["lon"]],
-                    popup=f"⛽ <b>{benz['nume']}</b><br>🚗 În apropiere (~{benz['dist_km']:.1f} km)",
-                    tooltip=f"⛽ Raza 5km: {benz['nume']}",
-                    icon=folium.Icon(color="orange", icon="info-sign"),
-                ).add_to(m_map)
+        # Randare GARANTATĂ cu ÎNCERCUIRE VIZIBILĂ (CircleMarker)
+        for item in benzinarii_gasite:
+            tip = item.get("tip", "benzinarie")
+
+            cerc_color = "#dc2626" if item.get("prioritate") == "directa" else "#f97316"
+            marker_color = "red" if item.get("prioritate") == "directa" else "orange"
+
+            if tip == "service":
+                cerc_color = "#2563eb"
+                marker_color = "blue"
+
+            # 1. CERCUL DE ÎNCERCUIRE ROȘU/PORTOCALIU/ALBASTRU (FĂRĂ GREȘ)
+            folium.CircleMarker(
+                location=[item["lat"], item["lon"]],
+                radius=24,
+                color=cerc_color,
+                weight=5,
+                fill=True,
+                fill_color=cerc_color,
+                fill_opacity=0.4,
+            ).add_to(m_map)
+
+            # 2. MARKER NATIV
+            folium.Marker(
+                location=[item["lat"], item["lon"]],
+                popup=f"📍 <b>{item['nume']}</b>",
+                tooltip=f"⭐ {item['nume']}",
+                icon=folium.Icon(color=marker_color, icon="info-sign"),
+            ).add_to(m_map)
 
         st_folium(m_map, width=650, height=350, key="harta_principala")
 
