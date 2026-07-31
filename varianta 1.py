@@ -230,7 +230,7 @@ with st.sidebar:
         st.caption(f"**Cutie viteze:** {spec['cutie']}")
         st.caption(f"**Masa vehicul:** {spec['masa']} kg")
 
-        st.markdown("**⛽ Consum Producător (Oficial):**")
+        st.markdown("**⛽ Consum Producător (Oficial):*")
         st.caption(f"• **Urban (Oraș):** {spec['c_urban']} l/100km")
         st.caption(f"• **Extraurban (Drum întins):** {spec['c_extraurban']} l/100km")
         st.caption(f"• **Regim Mixt:** {spec['c_mixt']} l/100km")
