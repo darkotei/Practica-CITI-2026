@@ -1,6 +1,7 @@
 import math
 from datetime import time
 import re
+import WazeRouteCalculator
 import folium
 import plotly.graph_objects as go
 import requests
@@ -47,90 +48,18 @@ if "rezultate_calculate" not in st.session_state:
 
 
 VEHICULE_DB = {
-    "Dacia": {
-        "Logan": {
-            "1.0 TCe (Benzină) - 90 CP": {
-                "combustibil": "Benzină",
-                "cc": 999,
-                "cp": 90,
-                "cutie": "Manuală",
-                "masa": 1100,
-                "cx": 0.32,
-                "aria": 2.2,
-                "bsfc": 260,
-                "cid": 0.0002,
-                "c_urban": 6.8,
-                "c_extraurban": 4.4,
-                "c_mixt": 5.3,
-            },
-            "1.5 dCi (Diesel) - 95 CP": {
-                "combustibil": "Diesel",
-                "cc": 1461,
-                "cp": 95,
-                "cutie": "Manuală",
-                "masa": 1200,
-                "cx": 0.32,
-                "aria": 2.2,
-                "bsfc": 210,
-                "cid": 0.00015,
-                "c_urban": 4.4,
-                "c_extraurban": 3.5,
-                "c_mixt": 3.8,
-            },
-        }
-    },
-    "Volkswagen": {
-        "Tiguan (SUV)": {
-            "2.0 TDI (Diesel) - 150 CP": {
-                "combustibil": "Diesel",
-                "cc": 1968,
-                "cp": 150,
-                "cutie": "Automată",
-                "masa": 1650,
-                "cx": 0.34,
-                "aria": 2.5,
-                "bsfc": 205,
-                "cid": 0.00022,
-                "c_urban": 6.2,
-                "c_extraurban": 4.6,
-                "c_mixt": 5.2,
-            }
-        },
-        "Golf 8": {
-            "1.5 TSI (Benzină) - 130 CP": {
-                "combustibil": "Benzină",
-                "cc": 1498,
-                "cp": 130,
-                "cutie": "Manuală",
-                "masa": 1300,
-                "cx": 0.27,
-                "aria": 2.2,
-                "bsfc": 235,
-                "cid": 0.00018,
-                "c_urban": 6.1,
-                "c_extraurban": 4.1,
-                "c_mixt": 4.8,
-            }
-        },
-    },
-    "BMW": {
-        "Seria 3": {
-            "2.0 320d (Diesel) - 190 CP": {
-                "combustibil": "Diesel",
-                "cc": 1995,
-                "cp": 190,
-                "cutie": "Automată",
-                "masa": 1545,
-                "cx": 0.23,
-                "aria": 2.15,
-                "bsfc": 198,
-                "cid": 0.00019,
-                "c_urban": 5.1,
-                "c_extraurban": 3.9,
-                "c_mixt": 4.4,
-            }
-        }
-    },
+    "Audi": ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q3", "Q5", "Q7", "Q8", "TT"],
+    "BMW": ["Seria 1", "Seria 2", "Seria 3", "Seria 4", "Seria 5", "Seria 7", "X1", "X3", "X4", "X5", "X6", "X7"],
+    "Dacia": ["Bigster", "Duster", "Jogger", "Logan", "Sandero", "Spring"],
+    "Ford": ["EcoSport", "Fiesta", "Focus", "Kuga", "Mondeo", "Mustang", "Puma", "Ranger"],
+    "Mercedes-Benz": ["Clasa A", "Clasa B", "Clasa C", "Clasa E", "Clasa S", "CLA", "CLE", "GLA", "GLC", "GLE", "GLS"],
+    "Nissan": ["Juke", "Micra", "Navara", "Qashqai", "X-Trail"],
+    "Opel": ["Astra", "Corsa", "Crossland", "Insignia", "Mokka", "Grandland"],
+    "Peugeot": ["208", "308", "508", "2008", "3008", "5008"],
+    "Renault": ["Clio", "Captur", "Kadjar", "Megane", "Austral", "Talisman", "Zoe"],
+    "Skoda": ["Fabia", "Kamiq", "Karoq", "Kodiaq", "Octavia", "Scala", "Superb"],
+    "Toyota": ["Auris", "Avensis", "Aygo", "C-HR", "Corolla", "RAV4", "Yaris"],
+    "Volkswagen": ["Arteon", "Golf", "ID.3", "ID.4", "Jetta", "Passat", "Polo", "T-Cross", "T-Roc", "Tiguan", "Touareg"],
 }
 
 
@@ -282,9 +211,19 @@ def obtine_benzinarii_pe_traseu(puncte_traseu):
         return []
 
 
-# ---------------------------------------------------------
-# SIDEBAR - CONFIGURARE VEHICUL
-# ---------------------------------------------------------
+
+# Function pentru preluare date de trafic LIVE de la Waze
+def obtine_date_waze(lat_p, lon_p, lat_s, lon_s):
+    try:
+        # Preluăm datele live pentru zona Europei (România)
+        start_coords = f"{lat_p},{lon_p}"
+        end_coords = f"{lat_s},{lon_s}"
+        waze = WazeRouteCalculator.WazeRouteCalculator(start_coords, end_coords, region='EU')
+        route_time, route_distance = waze.calc_route_info()
+        return route_distance, route_time  # Distanță în km, Timp real în minute
+    except Exception:
+        return None, None
+
 # ---------------------------------------------------------
 # SIDEBAR - CONFIGURARE VEHICUL
 # ---------------------------------------------------------
@@ -293,13 +232,14 @@ with st.sidebar:
     st.title("⚙️ Setări Vehicul")
 
     # Selectare din baza de date
-    marca = st.selectbox("🏎️ Marca:", list(VEHICULE_DB.keys()))
-    model = st.selectbox("🚗 Modelul:", list(VEHICULE_DB[marca].keys()))
-    motorizare = st.selectbox(
-        "🔧 Motorizare predefinită:", list(VEHICULE_DB[marca][model].keys())
-    )
+    marca_selectata = st.selectbox("🏎️ Marca:", sorted(list(VEHICULE_DB.keys())))
+    modele_disponibile = VEHICULE_DB[marca_selectata]
+    model_selectat=st.selectbox("🚗 Modelul:", sorted(modele_disponibile))
+    #motorizare = st.selectbox(
+    #    "🔧 Motorizare predefinită:", list(VEHICULE_DB[marca][model].keys())
+    #)
 
-    spec_baza = VEHICULE_DB[marca][model][motorizare]
+    #spec_baza = VEHICULE_DB[marca][model][motorizare]
 
     st.markdown("---")
     st.subheader("⚙️ Specificații Motor & Transmisie")
@@ -307,14 +247,14 @@ with st.sidebar:
     combustibil_user = st.radio(
         "⛽ Tip Combustibil:",
         ["Benzină", "Diesel"],
-        index=0 if spec_baza["combustibil"] == "Benzină" else 1
+        index=0
     )
 
     cc_user = st.number_input(
         "📏 Capacitate Cilindrică (cc):",
         min_value=600,
         max_value=6000,
-        value=int(spec_baza["cc"]),
+        value=1400,
         step=50
     )
 
@@ -322,14 +262,22 @@ with st.sidebar:
         "🐎 Putere (Cai Putere - CP):",
         min_value=40,
         max_value=1000,
-        value=int(spec_baza["cp"]),
+        value=100,
         step=5
+    )
+
+    masa_user = st.number_input(
+        "⚖️ Masa Vehicul + Încărcătură (kg):",
+        min_value=600,
+        max_value=6000,
+        value=1250,
+        step=50
     )
 
     cutie_user = st.selectbox(
         "🕹️ Transmisie:",
         ["Manuală", "Automată"],
-        index=0 if spec_baza["cutie"] == "Manuală" else 1
+        index=0
     )
 
     # Introducere Consum Mediu Personalizat
@@ -337,18 +285,24 @@ with st.sidebar:
         "⛽ Consum Mediu Declarat/Personalizat (L/100km):",
         min_value=2.0,
         max_value=30.0,
-        value=float(spec_baza["c_mixt"]),
+        value=6.5,
         step=0.1,
         format="%.1f"
     )
 
     # Suprascriem dicționarul spec cu valorile introduse/ajustate de utilizator
-    spec = spec_baza.copy()
-    spec["combustibil"] = combustibil_user
-    spec["cc"] = cc_user
-    spec["cp"] = cp_user
-    spec["cutie"] = cutie_user
-    spec["c_mixt"] = consum_user
+    spec = {
+            "marca": marca_selectata,
+            "model": model_selectat,
+            "combustibil": combustibil_user,
+            "cc": cc_user,
+            "cp": cp_user,
+            "masa": masa_user,
+            "cutie": cutie_user,
+            "c_mixt": consum_user,
+            "cx": 0.32,
+            "aria": 2.2
+    }
 
     st.markdown("---")
     st.subheader("💰 Cost Combustibil")
@@ -366,10 +320,10 @@ with st.sidebar:
     st.caption(f"**Cutie viteze:** {spec['cutie']}")
     st.caption(f"**Masa vehicul:** {spec['masa']} kg")
 
-    st.markdown("**⛽ Consum Producător / Setat:**")
-    st.caption(f"• **Urban (Oraș):** {spec['c_urban']} l/100km")
-    st.caption(f"• **Extraurban:** {spec['c_extraurban']} l/100km")
-    st.caption(f"• **Regim Mixt (Personalizat):** {spec['c_mixt']} l/100km")
+    st.markdown("**⛽ Consum:**")
+    #st.caption(f"• **Urban (Oraș):** {spec['c_urban']} l/100km")
+    #st.caption(f"• **Extraurban:** {spec['c_extraurban']} l/100km")
+    st.caption(f"• **Regim Mixt:** {spec['c_mixt']} l/100km")
 
 # ---------------------------------------------------------
 # CORP PRINCIPAL
@@ -492,7 +446,7 @@ if btn_calcul:
         st.warning("⚠️ Te rugăm să introduci atât punctul de plecare, cât și punctul de sosire!")
         st.session_state.rezultate_calculate = False
     else:
-        with st.spinner("Se calculează traseul și parametrii de drum..."):
+        with st.spinner("Se interoghează serverele WAZE & OSRM și se simulează traficul pe oră..."):
             lat_p, lon_p = get_coords(plecare)
             lat_s, lon_s = get_coords(sosire)
 
@@ -500,37 +454,54 @@ if btn_calcul:
                 st.error("❌ Nu s-au putut găsi coordonatele pentru adresele specificate.")
                 st.session_state.rezultate_calculate = False
             else:
-                distanta_km, timp_min, puncte_traseu = obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s)
+                # 1. Interogare Waze Live + OSRM Fallback (Ruta de bază)
+                distanta_waze, timp_waze = obtine_date_waze(lat_p, lon_p, lat_s, lon_s)
+                distanta_osrm, timp_osrm, puncte_traseu = obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s)
 
-                if distanta_km and timp_min:
-                    # 1. Determinare viteză medie reală pe traseu
+                distanta_km = distanta_waze if distanta_waze else distanta_osrm
+                timp_baza_min = timp_waze if timp_waze else timp_osrm
+
+                if distanta_km and timp_baza_min:
+                    sursa_date = "Waze Live Traffic + Predictive Time Engine" if distanta_waze else "OSRM + Predictive Time Engine"
+                    st.session_state.sursa_date = sursa_date
+
+                    # 2. MODEL PREDICTIV DE TRAFIC BAZAT PE ORA SELECTATĂ DE USER
+                    ora_int = ora_plecare.hour  # Preluăm ora selectată (0-23)
+
+                    # Definire multiplicator de timp și aglomerație după profile orare reale
+                    if (7 <= ora_int <= 9) or (16 <= ora_int <= 18):
+                        # Scenariu VÂRF URBAN / AGORAȚIE MAXIMĂ (Ore de vârf navetă)
+                        f_ora_timp = 1.35  # Timpul de parcurs crește cu 35%
+                        gamma_trafic = 0.40  # Consum penalizat cu +40% din cauza Stop-and-Go
+                        regim_text = "Trafic de Vârf (Aglomerație Mare)"
+                    elif (10 <= ora_int <= 15) or (19 <= ora_int <= 21):
+                        # Scenariu ZI / TRANZIT NORMAL (Trafic fluid/moderat)
+                        f_ora_timp = 1.10  # Timpul crește ușor (+10%)
+                        gamma_trafic = 0.15  # Consum penalizat cu +15%
+                        regim_text = "Trafic Diurn Normal"
+                    else:
+                        # Scenariu NOAPTE / LIBER (Interval 22:00 - 06:00)
+                        f_ora_timp = 0.90  # Drum liber, timp redus cu 10%
+                        gamma_trafic = 0.02  # Fără oprirea în trafic (+2%)
+                        regim_text = "Trafic Nocturn / Liber"
+
+                    # Ajustarea timpului estimat în funcție de ora aleasă
+                    timp_min = timp_baza_min * f_ora_timp
+
+                    # 3. Determinare viteză medie ajustată
                     v_medie_kmh = distanta_km / (timp_min / 60)
 
-                    # 2. Factor dinamic de viteză (Păstrează consumul user-ului ca bază)
-                    # La viteze optime (70-90 km/h), factorul este 1.0 (consumul declarat de user)
+                    # 4. Factor dinamic de viteză (Autostradă / Viteză mare)
                     if v_medie_kmh > 100:
-                        # Pe autostradă la viteze mari, rezistența aerodinamică crește consumul cu până la 15-25%
                         factor_viteză = 1.0 + ((v_medie_kmh - 100) / 100) * 0.5
                     else:
                         factor_viteză = 1.0
 
-                    # Consum de bază calculat direct din valoarea introdusă de utilizator
+                    # Consum de bază calculat din valoarea introdusă de utilizator
                     consum_baza_100km = spec["c_mixt"] * factor_viteză
                     consum_mers_litri = (consum_baza_100km / 100.0) * distanta_km
 
-                    # 3. Factor de aglomerație / trafic (gamma_trafic)
-                    if v_medie_kmh < 20:
-                        gamma_trafic = 0.50  # Trafic blocat (+50%)
-                    elif v_medie_kmh < 35:
-                        gamma_trafic = 0.30  # Trafic urban aglomerat (+30%)
-                    elif v_medie_kmh < 55:
-                        gamma_trafic = 0.15  # Trafic mixt / Inconstanță (+15%)
-                    elif v_medie_kmh < 90:
-                        gamma_trafic = 0.05  # Drum național / Rulare fluentă (+5%)
-                    else:
-                        gamma_trafic = 0.08  # Viteză crescută de autostradă (+8%)
-
-                    # 4. Calcul final
+                    # 5. Calcul final consum & cost
                     consum_total = consum_mers_litri * (1 + gamma_trafic)
                     consum_100km = (consum_total / distanta_km) * 100
                     cost_total_lei = consum_total * pret_per_litru
@@ -545,6 +516,7 @@ if btn_calcul:
                     st.session_state.cost_total_lei = cost_total_lei
                     st.session_state.consum_mers_litri = consum_mers_litri
                     st.session_state.gamma_trafic_pct = gamma_trafic * 100
+                    st.session_state.regim_text = regim_text
                     st.session_state.lat_p = lat_p
                     st.session_state.lon_p = lon_p
                     st.session_state.lat_s = lat_s
