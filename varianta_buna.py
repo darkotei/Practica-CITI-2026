@@ -79,7 +79,7 @@ def get_coords(location_name):
                 "limit": 1,
                 "addressdetails": 1,
             }
-            headers = {"User-Agent": "OptiFuelSmartAddress/17.0 (darkotrifan62@gmail.com)"}
+            headers = {"User-Agent": "OptiFuelSmartAddress-17.0 - contact darkotrifan62 at gmail.com"}
             res = requests.get(
                 url, params=params, headers=headers, timeout=10
             ).json()
