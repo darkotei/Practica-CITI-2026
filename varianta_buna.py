@@ -289,8 +289,6 @@ def calculeaza_consum_segment(distanta_m, durata_s, spec, trafic_multiplier, opr
 # Pune acest cod în app.py. Fișierul auto_data_catalog.py trebuie să stea
 # în același director cu app.py.
 
-from auto_data_catalog import render_vehicle_selector
-
 
 # selectare a mărcii/modelului cu următorul fragment:
 
