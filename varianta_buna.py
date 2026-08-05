@@ -15,7 +15,7 @@ from auto_data_catalog import render_vehicle_selector
 # CONFIGURARE PAGINĂ & STILIZARE CSS
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="OptiFuel - Universal Fuel & Cost Optimizer",
+    page_title= "OptiFuel - Universal Fuel & Cost Optimizer",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
