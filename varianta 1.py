@@ -8,6 +8,8 @@ import requests
 import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
+from auto_data_catalog import render_vehicle_selector
+
 
 # ---------------------------------------------------------
 # CONFIGURARE PAGINĂ & STILIZARE CSS
@@ -40,27 +42,6 @@ st.markdown(
 
 if "rezultate_calculate" not in st.session_state:
     st.session_state.rezultate_calculate = False
-
-# ---------------------------------------------------------
-# BAZA DE DATE VEHICULE
-# ---------------------------------------------------------
-
-
-
-VEHICULE_DB = {
-    "Audi": ["A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q3", "Q5", "Q7", "Q8", "TT"],
-    "BMW": ["Seria 1", "Seria 2", "Seria 3", "Seria 4", "Seria 5", "Seria 7", "X1", "X3", "X4", "X5", "X6", "X7"],
-    "Dacia": ["Bigster", "Duster", "Jogger", "Logan", "Sandero", "Spring"],
-    "Ford": ["EcoSport", "Fiesta", "Focus", "Kuga", "Mondeo", "Mustang", "Puma", "Ranger"],
-    "Mercedes-Benz": ["Clasa A", "Clasa B", "Clasa C", "Clasa E", "Clasa S", "CLA", "CLE", "GLA", "GLC", "GLE", "GLS"],
-    "Nissan": ["Juke", "Micra", "Navara", "Qashqai", "X-Trail"],
-    "Opel": ["Astra", "Corsa", "Crossland", "Insignia", "Mokka", "Grandland"],
-    "Peugeot": ["208", "308", "508", "2008", "3008", "5008"],
-    "Renault": ["Clio", "Captur", "Kadjar", "Megane", "Austral", "Talisman", "Zoe"],
-    "Skoda": ["Fabia", "Kamiq", "Karoq", "Kodiaq", "Octavia", "Scala", "Superb"],
-    "Toyota": ["Auris", "Avensis", "Aygo", "C-HR", "Corolla", "RAV4", "Yaris"],
-    "Volkswagen": ["Arteon", "Golf", "ID.3", "ID.4", "Jetta", "Passat", "Polo", "T-Cross", "T-Roc", "Tiguan", "Touareg"],
-}
 
 
 # Geocodare avansată cu curățare de text și Fallback
@@ -114,17 +95,29 @@ def get_coords(location_name):
 # OSRM Routing Engine
 def obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s):
     try:
-        url = f"http://router.project-osrm.org/route/v1/driving/{lon_p},{lat_p};{lon_s},{lat_s}?overview=full&geometries=geojson"
-        res = requests.get(url, timeout=8).json()
+        url = f"http://router.project-osrm.org/route/v1/driving/{lon_p},{lat_p};{lon_s},{lat_s}?overview=full&geometries=geojson&steps=true"
+        headers = {"User-Agent": "OptiFuel_Practica_2026/1.0"}
+        response = requests.get(url, headers=headers,timeout=10)
+        if response.status_code != 200:
+            print(f"⚠️ OSRM a respins cererea. Status: {response.status_code} | Mesaj: {response.text}")
+            return None, None, [], []
+        res=response.json()
         if "routes" in res and len(res["routes"]) > 0:
             route = res["routes"][0]
             dist_km = route["distance"] / 1000.0
             durata_min = route["duration"] / 60.0
             coords = [[pt[1], pt[0]] for pt in route["geometry"]["coordinates"]]
-            return dist_km, durata_min, coords
-    except Exception:
-        pass
-    return None, None, []
+            segmente=[]
+            for step in route["legs"][0]["steps"]:
+                segmente.append({
+                    "distanta_m": step["distance"],
+                    "durata_s": step["duration"],
+                    "nume": step.get("name", "segment")
+                })
+            return dist_km, durata_min, coords, segmente
+    except Exception as e:
+        print(f"❌ Eroare tehnică la interogarea OSRM: {e}")
+    return None, None, [], []
 
 
 # Căutare exhaustivă benzinării (Rază strictă de 5 km)
@@ -224,106 +217,120 @@ def obtine_date_waze(lat_p, lon_p, lat_s, lon_s):
     except Exception:
         return None, None
 
-# ---------------------------------------------------------
-# SIDEBAR - CONFIGURARE VEHICUL
-# ---------------------------------------------------------
+
+def calculeaza_consum_segment(distanta_m, durata_s, spec, trafic_multiplier, opriri=0):
+    if distanta_m==0 or durata_s==0:
+        return 0.0
+    m=float(spec["masa"])
+    Cx=spec.get("Cx", 0.32)
+    if "latime" in spec and "inaltime" in spec:
+        latime_m=float(spec["latime"])/1000.0
+        inaltime_m=float(spec["inaltime"])/1000.0
+        A=latime_m*inaltime_m*0.81
+    else:
+        A=spec.get("A", 2.15)
+
+
+    text_date=spec.get("motorizare", "")+" "+spec.get("generatie", "")+" "+spec.get("vehicul", "")
+    match_an=re.search(r'\b(19\d{2}|20\d{2})\b', text_date)
+
+    an_generatie=int(match_an.group()) if match_an else 2015
+    combustibil=spec.get("combustilbil", "benzina").lower()
+
+    if "benzin" in combustibil:
+        if an_generatie<2010:
+            bsfc_estimat=280
+            eta_tr=0.86
+        else:
+            bsfc_estimat=250
+            eta_tr=0.90
+    else: #motoare diesel
+        if an_generatie<2010:
+            bsfc_estimat=220
+            eta_tr=0.88
+        else:
+            bsfc_estimat=205
+            eta_tr=0.90
+
+    BSFC=spec.get("BSFC", bsfc_estimat)
+    C_id=spec.get("C_id", 0.00035)
+    #eta_tr=0.89
+    rho=1.225
+    g=9.81
+    f=0.015
+    #delta_h=h2-h1
+    alpha=0.0
+
+    durata_reala_s=durata_s*trafic_multiplier
+    v=distanta_m/durata_reala_s
+
+    F_rul=m*g*f*math.cos(alpha)
+    F_aer=0.5*rho*Cx*A*(v**2)
+    F_panta=m*g*math.sin(alpha)
+    F_dem=(m*1.5*0.1) if opriri>0 else 0
+
+    F_total=F_rul+F_aer+F_panta+F_dem
+
+    P_r=F_total*v
+    P_m=P_r/eta_tr if P_r>0 else 0
+    P_m_kW=P_m/1000.0
+
+    densitate_combustibil=0.74 if "benzin" in spec.get("combustibil", "benzina").lower() else 0.83
+
+    consum_miscare_g_s=(BSFC*P_m_kW)/3600.0
+    consum_miscare_L=(consum_miscare_g_s/(densitate_combustibil*1000))*durata_reala_s
+
+    timp_stat_s=opriri*15
+    consum_stationare_L=timp_stat_s*C_id
+
+    return consum_miscare_L+consum_stationare_L
+
+
+# Pune acest cod în app.py. Fișierul auto_data_catalog.py trebuie să stea
+# în același director cu app.py.
+
+from auto_data_catalog import render_vehicle_selector
+
+
+# selectare a mărcii/modelului cu următorul fragment:
+
 with st.sidebar:
     st.image("https://img.icons8.com/isometric/100/gas-station.png", width=80)
     st.title("⚙️ Setări Vehicul")
 
-    # Selectare din baza de date
-    marca_selectata = st.selectbox("🏎️ Marca:", sorted(list(VEHICULE_DB.keys())))
-    modele_disponibile = VEHICULE_DB[marca_selectata]
-    model_selectat=st.selectbox("🚗 Modelul:", sorted(modele_disponibile))
-    #motorizare = st.selectbox(
-    #    "🔧 Motorizare predefinită:", list(VEHICULE_DB[marca][model].keys())
-    #)
-
-    #spec_baza = VEHICULE_DB[marca][model][motorizare]
+    spec = render_vehicle_selector()
+    if not spec:
+        st.stop()
 
     st.markdown("---")
-    st.subheader("⚙️ Specificații Motor & Transmisie")
-
-    combustibil_user = st.radio(
-        "⛽ Tip Combustibil:",
-        ["Benzină", "Diesel"],
-        index=0
-    )
-
-    cc_user = st.number_input(
-        "📏 Capacitate Cilindrică (cc):",
-        min_value=600,
-        max_value=6000,
-        value=1400,
-        step=50
-    )
-
-    cp_user = st.number_input(
-        "🐎 Putere (Cai Putere - CP):",
-        min_value=40,
-        max_value=1000,
-        value=100,
-        step=5
-    )
-
-    masa_user = st.number_input(
-        "⚖️ Masa Vehicul + Încărcătură (kg):",
-        min_value=600,
-        max_value=6000,
-        value=1250,
-        step=50
-    )
-
-    cutie_user = st.selectbox(
-        "🕹️ Transmisie:",
-        ["Manuală", "Automată"],
-        index=0
-    )
-
-    # Introducere Consum Mediu Personalizat
-    consum_user = st.number_input(
-        "⛽ Consum Mediu Declarat/Personalizat (L/100km):",
-        min_value=2.0,
-        max_value=30.0,
-        value=6.5,
-        step=0.1,
-        format="%.1f"
-    )
-
-    # Suprascriem dicționarul spec cu valorile introduse/ajustate de utilizator
-    spec = {
-            "marca": marca_selectata,
-            "model": model_selectat,
-            "combustibil": combustibil_user,
-            "cc": cc_user,
-            "cp": cp_user,
-            "masa": masa_user,
-            "cutie": cutie_user,
-            "c_mixt": consum_user,
-            "cx": 0.32,
-            "aria": 2.2
-    }
-
-    st.markdown("---")
-    st.subheader("💰 Cost Combustibil")
+    st.subheader("💰 Cost combustibil")
     pret_per_litru = st.number_input(
-        f"Preț {spec['combustibil']} (Lei / Litru):",
+        f"Preț {spec['combustibil']} (Lei / litru):",
         value=7.30,
         step=0.10,
         format="%.2f",
     )
 
     st.markdown("---")
-    st.subheader("📋 Fișă Tehnică Actualizată")
+    st.subheader("📋 Fișă tehnică")
+    st.caption(f"**Vehicul:** {spec['marca']} {spec['model']}")
+    st.caption(f"**Generație:** {spec['generatie']}")
+    st.caption(f"**Motorizare:** {spec['motorizare']}")
     st.caption(f"**Combustibil:** {spec['combustibil']}")
-    st.caption(f"**Motor / Putere:** {spec['cc']} cc / {spec['cp']} CP")
+    st.caption(f"**Motor / putere:** {spec['cc']} cc / {spec['cp']} CP")
     st.caption(f"**Cutie viteze:** {spec['cutie']}")
-    st.caption(f"**Masa vehicul:** {spec['masa']} kg")
+    st.caption(f"**Masă proprie:** {spec['masa']} kg")
+    def arata_consum(valoare):
+        return "-" if valoare is None else f"{valoare:.1f} l/100 km"
 
-    st.markdown("**⛽ Consum:**")
-    #st.caption(f"• **Urban (Oraș):** {spec['c_urban']} l/100km")
-    #st.caption(f"• **Extraurban:** {spec['c_extraurban']} l/100km")
-    st.caption(f"• **Regim Mixt:** {spec['c_mixt']} l/100km")
+    st.caption("**Consum declarat Auto-Data:**")
+    st.caption(f"• Urban: {arata_consum(spec['c_urban_declarat'])}")
+    st.caption(f"• Extraurban: {arata_consum(spec['c_extraurban_declarat'])}")
+    st.caption(f"• Mixt: {arata_consum(spec['c_mixt_declarat'])}")
+    st.caption(f"**Consum mixt folosit la calcul:** {spec['c_mixt']:.1f} l/100 km")
+    st.link_button("Vezi sursa specificațiilor", spec["url_sursa"])
+
+
 
 # ---------------------------------------------------------
 # CORP PRINCIPAL
@@ -446,7 +453,7 @@ if btn_calcul:
         st.warning("⚠️ Te rugăm să introduci atât punctul de plecare, cât și punctul de sosire!")
         st.session_state.rezultate_calculate = False
     else:
-        with st.spinner("Se interoghează serverele WAZE & OSRM și se simulează traficul pe oră..."):
+        with st.spinner("Se interoghează serverele WAZE & OSRM și se calculează forțele fizice..."):
             lat_p, lon_p = get_coords(plecare)
             lat_s, lon_s = get_coords(sosire)
 
@@ -454,68 +461,86 @@ if btn_calcul:
                 st.error("❌ Nu s-au putut găsi coordonatele pentru adresele specificate.")
                 st.session_state.rezultate_calculate = False
             else:
-                # 1. Interogare Waze Live + OSRM Fallback (Ruta de bază)
+                # 1. Interogare Waze Live + OSRM Segmentat
                 distanta_waze, timp_waze = obtine_date_waze(lat_p, lon_p, lat_s, lon_s)
-                distanta_osrm, timp_osrm, puncte_traseu = obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s)
 
-                distanta_km = distanta_waze if distanta_waze else distanta_osrm
-                timp_baza_min = timp_waze if timp_waze else timp_osrm
+                # Aici am actualizat apelul pentru a primi cele 4 valori
+                distanta_osrm, timp_osrm, puncte_traseu, segmente = obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s)
 
-                if distanta_km and timp_baza_min:
-                    sursa_date = "Waze Live Traffic + Predictive Time Engine" if distanta_waze else "OSRM + Predictive Time Engine"
-                    st.session_state.sursa_date = sursa_date
+                if not segmente:
+                    st.error("❌ Nu s-a putut calcula o rută terestră între aceste două puncte.")
+                    st.session_state.rezultate_calculate = False
+                else:
+                    distanta_km = distanta_waze if distanta_waze else distanta_osrm
+                    timp_ideal_min = timp_osrm
 
-                    # 2. MODEL PREDICTIV DE TRAFIC BAZAT PE ORA SELECTATĂ DE USER
-                    ora_int = ora_plecare.hour  # Preluăm ora selectată (0-23)
-
-                    # Definire multiplicator de timp și aglomerație după profile orare reale
-                    if (7 <= ora_int <= 9) or (16 <= ora_int <= 18):
-                        # Scenariu VÂRF URBAN / AGORAȚIE MAXIMĂ (Ore de vârf navetă)
-                        f_ora_timp = 1.35  # Timpul de parcurs crește cu 35%
-                        gamma_trafic = 0.40  # Consum penalizat cu +40% din cauza Stop-and-Go
-                        regim_text = "Trafic de Vârf (Aglomerație Mare)"
-                    elif (10 <= ora_int <= 15) or (19 <= ora_int <= 21):
-                        # Scenariu ZI / TRANZIT NORMAL (Trafic fluid/moderat)
-                        f_ora_timp = 1.10  # Timpul crește ușor (+10%)
-                        gamma_trafic = 0.15  # Consum penalizat cu +15%
-                        regim_text = "Trafic Diurn Normal"
+                    # 2. MODEL PREDICTIV / Waze Live
+                    if timp_waze:
+                        factor_congestie = timp_waze / timp_ideal_min if timp_ideal_min > 0 else 1.0
+                        timp_final_min = timp_waze
+                        regim_text = f"Trafic Live (Waze). Întârziere estimată: {int(timp_waze - timp_ideal_min)} min"
                     else:
-                        # Scenariu NOAPTE / LIBER (Interval 22:00 - 06:00)
-                        f_ora_timp = 0.90  # Drum liber, timp redus cu 10%
-                        gamma_trafic = 0.02  # Fără oprirea în trafic (+2%)
-                        regim_text = "Trafic Nocturn / Liber"
+                        ora_int = ora_plecare.hour
+                        if (7 <= ora_int <= 9) or (16 <= ora_int <= 18):
+                            factor_congestie = 1.35
+                            regim_text = "Trafic de Vârf (OSRM Predictiv)"
+                        elif (10 <= ora_int <= 15) or (19 <= ora_int <= 21):
+                            factor_congestie = 1.10
+                            regim_text = "Trafic Diurn Normal"
+                        else:
+                            factor_congestie = 0.90
+                            regim_text = "Trafic Nocturn / Liber"
+                        timp_final_min = timp_ideal_min * factor_congestie
 
-                    # Ajustarea timpului estimat în funcție de ora aleasă
-                    timp_min = timp_baza_min * f_ora_timp
+                    gamma_trafic_pct = (factor_congestie - 1.0) * 100
 
-                    # 3. Determinare viteză medie ajustată
-                    v_medie_kmh = distanta_km / (timp_min / 60)
+                    # 3. CALCUL FIZIC PE SEGMENTE
+                    consum_total_litri = 0.0
+                    consum_ideal_litri = 0.0
 
-                    # 4. Factor dinamic de viteză (Autostradă / Viteză mare)
-                    if v_medie_kmh > 100:
-                        factor_viteză = 1.0 + ((v_medie_kmh - 100) / 100) * 0.5
-                    else:
-                        factor_viteză = 1.0
+                    for step in segmente:
+                        # Detectăm opririle teoretice
+                        opriri = 1 if "roundabout" in step["nume"].lower() or "turn" in step["nume"].lower() else 0
 
-                    # Consum de bază calculat din valoarea introdusă de utilizator
-                    consum_baza_100km = spec["c_mixt"] * factor_viteză
-                    consum_mers_litri = (consum_baza_100km / 100.0) * distanta_km
+                        # Penalizare aglomerație extremă
+                        if factor_congestie > 1.2:
+                            opriri += max(1, int(step["distanta_m"] / 500))
 
-                    # 5. Calcul final consum & cost
-                    consum_total = consum_mers_litri * (1 + gamma_trafic)
-                    consum_100km = (consum_total / distanta_km) * 100
-                    cost_total_lei = consum_total * pret_per_litru
+                            # Consum real (cu trafic)
+                        consum_step = calculeaza_consum_segment(
+                            step["distanta_m"],
+                            step["durata_s"],
+                            spec,
+                            factor_congestie,
+                            opriri
+                        )
+
+                        # Consum ideal (pentru comparația din grafic)
+                        consum_ideal = calculeaza_consum_segment(
+                            step["distanta_m"],
+                            step["durata_s"],
+                            spec,
+                            1.0,
+                            0
+                        )
+
+                        consum_total_litri += consum_step
+                        consum_ideal_litri += consum_ideal
+
+                    # 4. Finalizare Calcule
+                    consum_100km = (consum_total_litri / distanta_km) * 100 if distanta_km > 0 else 0
+                    cost_total_lei = consum_total_litri * pret_per_litru
 
                     # Salvare în session_state
                     st.session_state.data_plecare = data_plecare
                     st.session_state.ora_plecare = ora_plecare
                     st.session_state.distanta_km = distanta_km
-                    st.session_state.timp_min = timp_min
-                    st.session_state.consum_total = consum_total
+                    st.session_state.timp_min = timp_final_min
+                    st.session_state.consum_total = consum_total_litri
                     st.session_state.consum_100km = consum_100km
                     st.session_state.cost_total_lei = cost_total_lei
-                    st.session_state.consum_mers_litri = consum_mers_litri
-                    st.session_state.gamma_trafic_pct = gamma_trafic * 100
+                    st.session_state.consum_mers_litri = consum_ideal_litri
+                    st.session_state.gamma_trafic_pct = gamma_trafic_pct
                     st.session_state.regim_text = regim_text
                     st.session_state.lat_p = lat_p
                     st.session_state.lon_p = lon_p
@@ -524,9 +549,6 @@ if btn_calcul:
                     st.session_state.puncte_traseu = puncte_traseu
                     st.session_state.benzinarii = obtine_benzinarii_pe_traseu(puncte_traseu)
                     st.session_state.rezultate_calculate = True
-                else:
-                    st.error("❌ Nu s-a putut calcula o rută terestră între aceste două puncte.")
-                    st.session_state.rezultate_calculate = False
 
 # ---------------------------------------------------------
 # AFIȘARE REZULTATE PERMANENTE
