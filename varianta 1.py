@@ -659,7 +659,7 @@ if st.session_state.rezultate_calculate:
             "Rulare Constantă (Fizică Pură)",
             f"Penalizare Trafic (+{st.session_state.gamma_trafic_pct:.1f}%)",
         ]
-        values = [mers_constant, penalizare]
+        values =[mers_constant, penalizare]
 
         fig = go.Figure(
             data=[
