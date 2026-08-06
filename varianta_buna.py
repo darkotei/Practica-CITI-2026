@@ -320,6 +320,27 @@ with st.sidebar:
     )
 
     st.markdown("---")
+    st.subheader("🕒 Scenariu de Trafic")
+    optiune_scenariu = st.selectbox(
+        "Alege momentul deplasării:",
+        ["Scenariul B (Trafic normal de zi) - LIVE",
+         "Scenariul A (Ora de vârf - 08:15)",
+         "Scenariul C (Trafic nocturn - 23:30)"]
+    )
+
+    # Transformăm alegerea în literă pentru funcția noastră
+    if "Scenariul A" in optiune_scenariu:
+        litera_scenariu = "A"
+    elif "Scenariul C" in optiune_scenariu:
+        litera_scenariu = "C"
+    else:
+        litera_scenariu = "B"
+
+    st.markdown("---")
+    st.subheader("📄 Fișă tehnică")
+    st.caption(f"**Vehicul:** {spec['marca']} {spec['model']}")
+
+    st.markdown("---")
     st.subheader("📋 Fișă tehnică")
     st.caption(f"**Vehicul:** {spec['marca']} {spec['model']}")
     st.caption(f"**Generație:** {spec['generatie']}")
@@ -470,7 +491,7 @@ if btn_calcul:
                 st.session_state.rezultate_calculate = False
             else:
                 # 1. Interogare Waze Live + OSRM Segmentat
-                distanta_waze, timp_waze = obtine_date_waze(lat_p, lon_p, lat_s, lon_s)
+                distanta_waze, timp_waze = obtine_date_waze(lat_p, lon_p, lat_s, lon_s, scenariu=litera_scenariu)
 
                 # Aici am actualizat apelul pentru a primi cele 4 valori
                 distanta_osrm, timp_osrm, puncte_traseu, segmente = obtine_geometrie_osrm(lat_p, lon_p, lat_s, lon_s)
