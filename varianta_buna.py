@@ -217,7 +217,7 @@ def obtine_date_waze(lat_p,lon_p, lat_s, lon_s, scenariu="B"):
         # Alterăm timpul real pentru a forța vitezele medii din Raportul de Practică
         if scenariu == "A":
             # Ora 08:15 - Regim Stop-and-Go sever (Mărim timpul masiv)
-            route_time = route_time * 2.2
+            route_time = route_time * 1.35
         elif scenariu == "C":
             # Ora 23:30 - Trafic nocturn liber (Scădem timpul)
             route_time = route_time * 0.7
