@@ -323,9 +323,9 @@ with st.sidebar:
     st.subheader("🕒 Scenariu de Trafic")
     optiune_scenariu = st.selectbox(
         "Alege momentul deplasării:",
-        ["Scenariul B (Trafic normal de zi) - LIVE",
-         "Scenariul A (Ora de vârf - 08:15)",
-         "Scenariul C (Trafic nocturn - 23:30)"]
+        ["Scenariul B (Trafic normal de zi)",
+         "Scenariul A (Trafic de vârf)",
+         "Scenariul C (Trafic nocturn)"]
     )
 
     # Transformăm alegerea în literă pentru funcția noastră
@@ -472,6 +472,9 @@ with col_minut:
     )
 
 ora_plecare = time(int(ora_val), int(minut_val))
+
+
+
 
 btn_calcul = st.button(
     "🚀 Calculează Traseul, Consumul și Costul", use_container_width=True
