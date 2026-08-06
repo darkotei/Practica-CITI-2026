@@ -323,8 +323,8 @@ with st.sidebar:
     st.subheader("🕒 Scenariu de Trafic")
     optiune_scenariu = st.selectbox(
         "Alege momentul deplasării:",
-        ["Scenariul B (Trafic normal de zi)",
-         "Scenariul A (Trafic de vârf)",
+        ["Scenariul A (Trafic de vârf)",
+         "Scenariul B (Trafic normal de zi)",
          "Scenariul C (Trafic nocturn)"]
     )
 
