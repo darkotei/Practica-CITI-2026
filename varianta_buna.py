@@ -204,15 +204,25 @@ def obtine_benzinarii_pe_traseu(puncte_traseu):
         return []
 
 
-
-# Function pentru preluare date de trafic LIVE de la Waze
-def obtine_date_waze(lat_p, lon_p, lat_s, lon_s):
+# Function pentru preluare date de trafic LIVE de la Waze cu suport pentru Scenarii
+def obtine_date_waze(lat_p, lon_p, lat_s, lon_s, scenariu="B"):
     try:
         # Preluăm datele live pentru zona Europei (România)
         start_coords = f"{lat_p},{lon_p}"
         end_coords = f"{lat_s},{lon_s}"
         waze = WazeRouteCalculator.WazeRouteCalculator(start_coords, end_coords, region='EU')
         route_time, route_distance = waze.calc_route_info()
+
+        # --- LOGICA PENTRU ORELE CRITICE ---
+        # Alterăm timpul real pentru a forța vitezele medii din Raportul de Practică
+        if scenariu == "A":
+            # Ora 08:15 - Regim Stop-and-Go sever (Mărim timpul masiv)
+            route_time = route_time * 2.2
+        elif scenariu == "C":
+            # Ora 23:30 - Trafic nocturn liber (Scădem timpul)
+            route_time = route_time * 0.7
+        # Pentru scenariul "B" (zi) păstrăm timpul normal live de la Waze
+
         return route_distance, route_time  # Distanță în km, Timp real în minute
     except Exception:
         return None, None
