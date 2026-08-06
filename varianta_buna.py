@@ -15,7 +15,7 @@ from auto_data_catalog import render_vehicle_selector
 # CONFIGURARE PAGINĂ & STILIZARE CSS
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title= "OptiFuel - Universal Fuel & Cost Optimizer",
+    page_title= "DT OptiFuel - Universal Fuel & Cost Optimizer",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -364,7 +364,7 @@ with st.sidebar:
 # ---------------------------------------------------------
 # CORP PRINCIPAL
 # ---------------------------------------------------------
-st.title("⚡ OptiFuel — Optimizare Consum și Estimare Cost")
+st.title("⚡ DT OptiFuel — Optimizare Consum și Estimare Cost")
 st.markdown(
     "Calcul consum pentru **orice destinație națională sau internațională**."
 )
