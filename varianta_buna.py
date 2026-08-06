@@ -205,7 +205,7 @@ def obtine_benzinarii_pe_traseu(puncte_traseu):
 
 
 # Function pentru preluare date de trafic LIVE de la Waze cu suport pentru Scenarii
-def obtine_date_waze(lat_p, lon_p, lat_s, lon_s, scenariu="B"):
+def obtine_date_waze(lat_p,lon_p, lat_s, lon_s, scenariu="B"):
     try:
         # Preluăm datele live pentru zona Europei (România)
         start_coords = f"{lat_p},{lon_p}"
