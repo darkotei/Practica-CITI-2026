@@ -220,7 +220,7 @@ def obtine_date_waze(lat_p,lon_p, lat_s, lon_s, scenariu="B"):
             route_time = route_time * 1.35
         elif scenariu == "C":
             # Ora 23:30 - Trafic nocturn liber (Scădem timpul)
-            route_time = route_time * 0.7
+            route_time = route_time * 0.85
         # Pentru scenariul "B" (zi) păstrăm timpul normal live de la Waze
 
         return route_distance, route_time  # Distanță în km, Timp real în minute
