@@ -679,7 +679,7 @@ if st.session_state.rezultate_calculate:
                     icon=folium.Icon(color="orange", icon="info-sign"),
                 ).add_to(m_map)
 
-        st_folium(m_map, width=700, height=500, key="harta_principala")
+        st_folium(m_map, width=700, height=500, use_container_width=True, key="harta_principala")
 
     #with col_grafic:
      #   st.subheader("📈 Structură Consum Dinamică")
