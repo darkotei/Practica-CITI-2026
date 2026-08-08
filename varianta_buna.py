@@ -681,30 +681,30 @@ if st.session_state.rezultate_calculate:
 
         st_folium(m_map, width=650, height=350, key="harta_principala")
 
-    with col_grafic:
-        st.subheader("📈 Structură Consum Dinamică")
+    #with col_grafic:
+     #   st.subheader("📈 Structură Consum Dinamică")
 
-        mers_constant = st.session_state.consum_mers_litri
-        penalizare = st.session_state.consum_total - mers_constant
+#        mers_constant = st.session_state.consum_mers_litri
+#       penalizare = st.session_state.consum_total - mers_constant
+#
+ #       labels = [
+  #          "Rulare Constantă (Fizică Pură)",
+   #         f"Penalizare Trafic (+{st.session_state.gamma_trafic_pct:.1f}%)",
+    #    ]
+     #   values =[mers_constant, penalizare]
 
-        labels = [
-            "Rulare Constantă (Fizică Pură)",
-            f"Penalizare Trafic (+{st.session_state.gamma_trafic_pct:.1f}%)",
-        ]
-        values =[mers_constant, penalizare]
-
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    labels=labels,
-                    values=values,
-                    hole=0.5,
-                    marker=dict(colors=["#2563eb", "#f59e0b"]),
-                )
-            ]
-        )
-        fig.update_layout(
-            margin=dict(t=20, b=20, l=20, r=20), height=320, showlegend=True
-        )
-        st.plotly_chart(fig, use_container_width=True)
+      #  fig = go.Figure(
+       #     data=[
+        #        go.Pie(
+         #           labels=labels,
+          #          values=values,
+           #         hole=0.5,
+            #        marker=dict(colors=["#2563eb", "#f59e0b"]),
+             #   )
+            #]
+        #)
+        #fig.update_layout(
+         #   margin=dict(t=20, b=20, l=20, r=20), height=320, showlegend=True
+        #)
+        #st.plotly_chart(fig, use_container_width=True)
 
