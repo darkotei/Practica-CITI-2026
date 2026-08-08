@@ -635,7 +635,7 @@ if st.session_state.rezultate_calculate:
     col_harta, col_grafic = st.columns([6, 4])
 
     with col_harta:
-        st.subheader("🗺️ Vizualizare Traseu & Benzinării (Rază 5 km)")
+        st.subheader("🗺️ Vizualizare Traseu")
         lat_p, lon_p = st.session_state.lat_p, st.session_state.lon_p
         lat_s, lon_s = st.session_state.lat_s, st.session_state.lon_s
         pts = st.session_state.puncte_traseu
