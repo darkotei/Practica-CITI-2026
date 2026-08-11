@@ -29,7 +29,7 @@ def afiseaza_pdf_in_site(GHID_LOCATII_SITE):
 
 # Când vrei să îl afișezi în cod, folosește un expander (meniu derulant):
 with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
-    afiseaza_pdf_in_site("ghid_adrese.pdf")
+    afiseaza_pdf_in_site("GHID_LOCATII_SITE .pdf")
 
 
 
@@ -409,7 +409,7 @@ if loc_data:
         )
 
 # Aici apelezi funcția pentru a afișa link-ul
-afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
+#afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
 
 
 # GHID DE INTRODUCERE A ADRESELOR
