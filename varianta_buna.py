@@ -362,9 +362,9 @@ with st.sidebar:
     else:
         litera_scenariu = "B"
 
-    st.markdown("---")
-    st.subheader("📄 Fișă tehnică")
-    st.caption(f"**Vehicul:** {spec['marca']} {spec['model']}")
+#    st.markdown("---")
+#    st.subheader("📄 Fișă tehnică")
+#    st.caption(f"**Vehicul:** {spec['marca']} {spec['model']}")
 
     st.markdown("---")
     st.subheader("📋 Fișă tehnică")
