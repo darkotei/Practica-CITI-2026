@@ -417,7 +417,7 @@ if loc_data:
 # GHID DE INTRODUCERE A ADRESELOR
 
 with st.expander("💡 Cum introduc corect adresele?"):
-    st.write("Pentru a evita erorile de rutare, descarcă scurtul nostru ghid în format PDF:")
+    st.write("Pentru a evita erorile de rutare, descarcă ghidul în format PDF:")
     buton_descarcare_pdf("GHID_LOCATII_SITE.pdf")
 
 
@@ -635,7 +635,7 @@ if st.session_state.rezultate_calculate:
 
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.markdown(
-        f'<div class="metric-card"><div class="metric-label">Distanță Traseu</div><div class="metric-value">{st.session_state.distanta_km:.1f} km</div></div>',
+        f'<div class="metric-card"><div class="metric-label">Distanță Traseu (km)</div><div class="metric-value">{st.session_state.distanta_km:.1f}</div></div>',
         unsafe_allow_html=True,
     )
 
@@ -652,15 +652,15 @@ if st.session_state.rezultate_calculate:
         unsafe_allow_html=True,
     )
     m3.markdown(
-        f'<div class="metric-card"><div class="metric-label">Consum Total</div><div class="metric-value">{st.session_state.consum_total:.2f} L</div></div>',
+        f'<div class="metric-card"><div class="metric-label">Consum Total (L)</div><div class="metric-value">{st.session_state.consum_total:.2f}</div></div>',
         unsafe_allow_html=True,
     )
     m4.markdown(
-        f'<div class="metric-card"><div class="metric-label">Consum Mediu Real</div><div class="metric-value">{st.session_state.consum_100km:.2f} l/100</div></div>',
+        f'<div class="metric-card"><div class="metric-label">Consum Mediu Real (L/100km)</div><div class="metric-value">{st.session_state.consum_100km:.2f}</div></div>',
         unsafe_allow_html=True,
     )
     m5.markdown(
-        f'<div class="metric-card"><div class="metric-label">Cost Total Estimativ</div><div class="metric-value" style="color: #16a34a;">{st.session_state.cost_total_lei:.2f} RON</div></div>',
+        f'<div class="metric-card"><div class="metric-label">Cost Total Estimativ (RON)</div><div class="metric-value" style="color: #16a34a;">{st.session_state.cost_total_lei:.2f}</div></div>',
         unsafe_allow_html=True,
     )
 
