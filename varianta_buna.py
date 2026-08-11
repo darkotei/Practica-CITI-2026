@@ -13,23 +13,35 @@ from auto_data_catalog import render_vehicle_selector
 import base64
 import streamlit as st
 
+import os
+import streamlit as st
 
-def afiseaza_pdf_in_site(GHID_LOCATII_SITE):
-    """Afișează un PDF direct în interfața Streamlit."""
+
+def buton_descarcare_pdf(GHID_LOCATII_SITE):
+    """Creează un buton nativ Streamlit pentru descărcarea PDF-ului."""
+    director_curent = os.path.dirname(__file__)
+    cale_absoluta = os.path.join(director_curent, GHID_LOCATII_SITE)
+
     try:
-        with open(GHID_LOCATII_SITE, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        # Citim fișierul fizic
+        with open(cale_absoluta, "rb") as pdf_file:
+            pdf_bytes = pdf_file.read()
 
-        # Inserăm PDF-ul folosind un iframe HTML
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="450" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+        # Generăm butonul oficial de download
+        st.download_button(
+            label="📄 Descarcă Ghidul de Adrese (Format PDF)",
+            data=pdf_bytes,
+            file_name="GHID_LOCATII_SITE.pdf",
+            mime="application/pdf"
+        )
     except FileNotFoundError:
-        st.error("Fișierul PDF nu a fost găsit.")
+        st.error("Eroare: PDF-ul nu a fost găsit pe server.")
 
 
-# Când vrei să îl afișezi în cod, folosește un expander (meniu derulant):
-with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
-    afiseaza_pdf_in_site("GHID_LOCATII_SITE.pdf")
+# Adaugă butonul în interfață (îl poți lăsa în expander sau îl poți pune direct pe pagină)
+with st.expander("💡 Cum introduc corect adresele?"):
+    st.write("Pentru a evita erorile de rutare, descarcă scurtul nostru ghid în format PDF:")
+    buton_descarcare_pdf("GHID_LOCATII_SITE.pdf")
 
 
 
