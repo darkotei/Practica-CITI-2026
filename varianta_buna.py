@@ -35,11 +35,6 @@ def buton_descarcare_pdf(GHID_LOCATII_SITE):
         st.error("Eroare: PDF-ul nu a fost găsit pe server.")
 
 
-# Adaugă butonul în interfață (îl poți lăsa în expander sau îl poți pune direct pe pagină)
-with st.expander("💡 Cum introduc corect adresele?"):
-    st.write("Pentru a evita erorile de rutare, descarcă scurtul nostru ghid în format PDF:")
-    buton_descarcare_pdf("GHID_LOCATII_SITE.pdf")
-
 
 
 # ---------------------------------------------------------
@@ -420,6 +415,13 @@ if loc_data:
 # Aici apelezi funcția pentru a afișa link-ul
 #afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
 
+
+# Adaugă butonul în interfață (îl poți lăsa în expander sau îl poți pune direct pe pagină)
+with st.expander("💡 Cum introduc corect adresele?"):
+    st.write("Pentru a evita erorile de rutare, descarcă scurtul nostru ghid în format PDF:")
+    buton_descarcare_pdf("GHID_LOCATII_SITE.pdf")
+
+
 with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
     director_curent = os.path.dirname(__file__)
     cale_absoluta = os.path.join(director_curent, "GHID_LOCATII_SITE.pdf")
@@ -429,6 +431,9 @@ with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
         pdf_viewer(cale_absoluta, width=700)
     except Exception:
         st.error("Eroare la încărcarea PDF-ului.")
+
+
+
 
 # GHID DE INTRODUCERE A ADRESELOR
 
