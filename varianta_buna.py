@@ -14,19 +14,22 @@ import base64
 import streamlit as st
 
 
-def afiseaza_link_pdf(GHID_LOCATII_SITE, text_link):
-    """Generează un link HTML pentru a deschide un PDF local într-un tab nou."""
+def afiseaza_pdf_in_site(cale_fisier):
+    """Afișează un PDF direct în interfața Streamlit."""
     try:
-        with open(GHID_LOCATII_SITE, "rb") as f:
-            pdf_codat = base64.b64encode(f.read()).decode('utf-8')
+        with open(cale_fisier, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
 
-        # Creăm link-ul HTML folosind tag-ul <a> cu atributul target="_blank"
-        html_link = f'<a href="data:application/pdf;base64,{pdf_codat}" target="_blank" style="text-decoration: none; font-weight: bold; color: #1f77b4;">📄 {text_link}</a>'
-
-        # Îl afișăm în Streamlit
-        st.markdown(html_link, unsafe_allow_html=True)
+        # Inserăm PDF-ul folosind un iframe HTML
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="450" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
-        st.error("Fișierul PDF nu a fost găsit. Verifică numele și locația.")
+        st.error("Fișierul PDF nu a fost găsit.")
+
+
+# Când vrei să îl afișezi în cod, folosește un expander (meniu derulant):
+with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
+    afiseaza_pdf_in_site("ghid_adrese.pdf")
 
 
 
