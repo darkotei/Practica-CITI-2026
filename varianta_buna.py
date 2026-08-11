@@ -9,12 +9,9 @@ import streamlit as st
 from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
 from auto_data_catalog import render_vehicle_selector
-
+from streamlit_pdf_viewer import pdf_viewer
 import base64
-import streamlit as st
-
 import os
-import streamlit as st
 
 
 def buton_descarcare_pdf(GHID_LOCATII_SITE):
@@ -423,6 +420,15 @@ if loc_data:
 # Aici apelezi funcția pentru a afișa link-ul
 #afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
 
+with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
+    director_curent = os.path.dirname(__file__)
+    cale_absoluta = os.path.join(director_curent, "GHID_LOCATII_SITE.pdf")
+
+    try:
+        # Randează PDF-ul direct pe pagină
+        pdf_viewer(cale_absoluta, width=700)
+    except Exception:
+        st.error("Eroare la încărcarea PDF-ului.")
 
 # GHID DE INTRODUCERE A ADRESELOR
 
