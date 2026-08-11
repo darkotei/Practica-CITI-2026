@@ -10,6 +10,25 @@ from streamlit_folium import st_folium
 from streamlit_js_eval import get_geolocation
 from auto_data_catalog import render_vehicle_selector
 
+import base64
+import streamlit as st
+
+
+def afiseaza_link_pdf(cale_fisier, text_link):
+    """Generează un link HTML pentru a deschide un PDF local într-un tab nou."""
+    try:
+        with open(cale_fisier, "rb") as f:
+            pdf_codat = base64.b64encode(f.read()).decode('utf-8')
+
+        # Creăm link-ul HTML folosind tag-ul <a> cu atributul target="_blank"
+        html_link = f'<a href="data:application/pdf;base64,{pdf_codat}" target="_blank" style="text-decoration: none; font-weight: bold; color: #1f77b4;">📄 {text_link}</a>'
+
+        # Îl afișăm în Streamlit
+        st.markdown(html_link, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.error("Fișierul PDF nu a fost găsit. Verifică numele și locația.")
+
+
 
 # ---------------------------------------------------------
 # CONFIGURARE PAGINĂ & STILIZARE CSS
@@ -385,6 +404,10 @@ if loc_data:
             "⚠️ Geolocația pe mobil necesită o conexiune securizată HTTPS.",
             icon="📱",
         )
+
+# Aici apelezi funcția pentru a afișa link-ul
+afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
+
 
 # GHID DE INTRODUCERE A ADRESELOR
 
