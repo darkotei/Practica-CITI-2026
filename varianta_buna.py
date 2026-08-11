@@ -14,10 +14,10 @@ import base64
 import streamlit as st
 
 
-def afiseaza_pdf_in_site(cale_fisier):
+def afiseaza_pdf_in_site(GHID_LOCATII_SITE):
     """Afișează un PDF direct în interfața Streamlit."""
     try:
-        with open(cale_fisier, "rb") as f:
+        with open(GHID_LOCATII_SITE, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
 
         # Inserăm PDF-ul folosind un iframe HTML
