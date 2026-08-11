@@ -412,67 +412,52 @@ if loc_data:
             icon="📱",
         )
 
-# Aici apelezi funcția pentru a afișa link-ul
-#afiseaza_link_pdf("GHID_LOCATII_SITE.pdf", "Ghid introducere corectă a adreselor (Click pentru a deschide)")
 
 
-# Adaugă butonul în interfață (îl poți lăsa în expander sau îl poți pune direct pe pagină)
+# GHID DE INTRODUCERE A ADRESELOR
+
 with st.expander("💡 Cum introduc corect adresele?"):
     st.write("Pentru a evita erorile de rutare, descarcă scurtul nostru ghid în format PDF:")
     buton_descarcare_pdf("GHID_LOCATII_SITE.pdf")
 
 
-with st.expander("💡 Apasă aici pentru a citi Ghidul de Adrese"):
-    director_curent = os.path.dirname(__file__)
-    cale_absoluta = os.path.join(director_curent, "GHID_LOCATII_SITE.pdf")
 
-    try:
-        # Randează PDF-ul direct pe pagină
-        pdf_viewer(cale_absoluta, width=700)
-    except Exception:
-        st.error("Eroare la încărcarea PDF-ului.")
+#with st.expander(
+#        "💡 Ghid introducere corectă a adreselor",
+#        expanded=False,
+#):
+#    st.markdown(
+#        """
+#        Pentru ca motorul de navigare să găsească **locația exactă** (fără să plaseze punctul pe câmp sau să dea erori), urmează aceste reguli:
 
+#        ---
+#        ### 📍 1. Pentru orașe sau stațiuni, fără o adresă exactă
+#        *Scrie simplu numele localității: "Costinești", "Sinaia".(sistemul va plasa automat punctul fix in **centrul localității/pe strada principală**).
 
+#        ---
 
+#        ### 🏠 2. Pentru Adrese Exacte (Oraș + Stradă + Număr)
+#        * Folosește formatul: **`Oraș, Stradă Număr`**
+#        * ✅ **Corect:** `București, Splaiul Independenței 290`
+#        * ✅ **Corect:** `Ploiești, Strada Republicii 15`
+#        * ⚠️ **De evitat:** `București, Splaiul Independenței, nr 290` *(evită adăugarea prescurtării „nr” sau „numărul”)*
 
-# GHID DE INTRODUCERE A ADRESELOR
+#       ---
 
-with st.expander(
-        "💡 Ghid introducere corectă a adreselor",
-        expanded=False,
-):
-    st.markdown(
-        """
-        Pentru ca motorul de navigare să găsească **locația exactă** (fără să plaseze punctul pe câmp sau să dea erori), urmează aceste reguli:
+#        ## 🏡 3. Pentru Sate sau Comune
+#        * Folosește formatul: **`Sat, Strada Număr`** sau doar **`Sat, Număr`**
+#        * ✅ **Corect:** `Măgura, Strada Principală 45 `
+#        * ✅ **Corect:** `Biertan 42`
+#        * ✅ **Corect:** `Peștera, Moieciu` (pentru cazul în care sunt mai multe sate cu același nume)
+#        * ❌ **Greșit (Supra-încărcat):** `Peștera, Moieciu, Brașov, numărul 200`
+#        *(Nu combina satul, comuna și orașul în aceeași casetă, deoarece hărțile vor căuta satul în interiorul orașului și vor da eroare).*
 
-        ---
-        ### 📍 1. Pentru orașe sau stațiuni, fără o adresă exactă
-        *Scrie simplu numele localității: "Costinești", "Sinaia".(sistemul va plasa automat punctul fix in **centrul localității/pe strada principală**).
+#    ---
 
-        ---
-
-        ### 🏠 2. Pentru Adrese Exacte (Oraș + Stradă + Număr)
-        * Folosește formatul: **`Oraș, Stradă Număr`**
-        * ✅ **Corect:** `București, Splaiul Independenței 290`
-        * ✅ **Corect:** `Ploiești, Strada Republicii 15`
-        * ⚠️ **De evitat:** `București, Splaiul Independenței, nr 290` *(evită adăugarea prescurtării „nr” sau „numărul”)*
-
-       ---
-
-        ## 🏡 3. Pentru Sate sau Comune
-        * Folosește formatul: **`Sat, Strada Număr`** sau doar **`Sat, Număr`**
-        * ✅ **Corect:** `Măgura, Strada Principală 45 `
-        * ✅ **Corect:** `Biertan 42`
-        * ✅ **Corect:** `Peștera, Moieciu` (pentru cazul în care sunt mai multe sate cu același nume)
-        * ❌ **Greșit (Supra-încărcat):** `Peștera, Moieciu, Brașov, numărul 200` 
-        *(Nu combina satul, comuna și orașul în aceeași casetă, deoarece hărțile vor căuta satul în interiorul orașului și vor da eroare).*
-
-    ---
-
-        ## 📱 4. Geolocație Automată (GPS)
-        * Poți lăsa aplicația să-ți detecteze automat poziția actuală prin GPS, iar în caseta de plecare vor apărea direct coordonatele tale exacte.
-        """
-    )
+#        ## 📱 4. Geolocație Automată (GPS)
+#        * Poți lăsa aplicația să-ți detecteze automat poziția actuală prin GPS, iar în caseta de plecare vor apărea direct coordonatele tale exacte.
+#        """
+#    )
 
 # ---------------------------------------------------------
 # ADRESE ȘI DATĂ/ORĂ DEPLESARE
