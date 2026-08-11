@@ -14,10 +14,10 @@ import base64
 import streamlit as st
 
 
-def afiseaza_link_pdf(cale_fisier, text_link):
+def afiseaza_link_pdf(GHID_LOCATII_SITE, text_link):
     """Generează un link HTML pentru a deschide un PDF local într-un tab nou."""
     try:
-        with open(cale_fisier, "rb") as f:
+        with open(GHID_LOCATII_SITE, "rb") as f:
             pdf_codat = base64.b64encode(f.read()).decode('utf-8')
 
         # Creăm link-ul HTML folosind tag-ul <a> cu atributul target="_blank"
