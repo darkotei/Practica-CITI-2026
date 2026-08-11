@@ -5,3 +5,4 @@ streamlit-js-eval
 WazeRouteCalculator
 requests
 plotly
+streamlit-pdf-viewer
