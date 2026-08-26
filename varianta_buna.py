@@ -293,7 +293,7 @@ def calculeaza_consum_segment(distanta_m, durata_s, spec, trafic_multiplier, opr
     #eta_tr=0.89
     rho=1.225
     g=9.81
-    f=0.015
+    f=0.018
     #delta_h=h2-h1
     alpha=0.0
 
